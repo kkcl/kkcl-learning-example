@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+       xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+       xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd">
+
+    <bean id="securityManager" class="org.apache.shiro.web.mgt.DefaultWebSecurityManager">
+        <property name="cacheManager" ref="cacheManager"/>
+        <property name="authenticator" ref="authenticator"></property>
+        <property name="realms">
+            <list>
+                <ref bean="shiroRealm"/>
+                <ref bean="secondRealm"/>
+            </list>
+        </property>
+<!--        <property name="rememberMeManager.cookie.maxAge" value="10"></property>-->
+    </bean>
+
+    <bean id="cacheManager" class="org.apache.shiro.cache.ehcache.EhCacheManager">
+        <property name="cacheManagerConfigFile" value="classpath:ehcache.xml"/>
+    </bean>
+
+    <bean id="authenticator"
+          class="org.apache.shiro.authc.pam.ModularRealmAuthenticator">
+        <!--认证策略的配置-->
+        <property name="authenticationStrategy">
+            <bean class="org.apache.shiro.authc.pam.AtLeastOneSuccessfulStrategy"></bean>
+        </property>
+    </bean>
+
+    <bean id="shiroRealm" class="com.kkcl.shiro.realm.ShiroRealm">
+        <property name="credentialsMatcher">
+            <bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+                <!--加密的方式-->
+                <property name="hashAlgorithmName" value="MD5"/>
+                <!--加密的次数-->
+                <property name="hashIterations" value="1024"/>
+            </bean>
+        </property>
+    </bean>
+
+    <bean id="secondRealm" class="com.kkcl.shiro.realm.SecondRealm">
+        <property name="credentialsMatcher">
+            <bean class="org.apache.shiro.authc.credential.HashedCredentialsMatcher">
+                <property name="hashAlgorithmName" value="SHA1"></property>
+                <property name="hashIterations" value="1024"></property>
+            </bean>
+        </property>
+    </bean>
+
+    <!--配置bean的生命周期，可以自定义的来调用配置在Spring IOC容器中的shiro bean的生民工周期方法-->
+    <bean id="lifecycleBeanPostProcessor" class="org.apache.shiro.spring.LifecycleBeanPostProcessor"/>
+
+    <!--启用IOC容器中使用shiro的注解，但必须在配置了lifecycleBeanPostProcessor之后才能使用-->
+    <bean class="org.springframework.aop.framework.autoproxy.DefaultAdvisorAutoProxyCreator"
+          depends-on="lifecycleBeanPostProcessor"/>
+    <bean class="org.apache.shiro.spring.security.interceptor.AuthorizationAttributeSourceAdvisor">
+        <property name="securityManager" ref="securityManager"/>
+    </bean>
+
+    <!--id必须和web.xml中的DelegatingFilterProxy的name一致-->
+    <bean id="shiroFilter" class="org.apache.shiro.spring.web.ShiroFilterFactoryBean">
+        <property name="securityManager" ref="securityManager"/>
+        <property name="loginUrl" value="/login.jsp"/>
+        <property name="successUrl" value="/list.jsp"/>
+        <property name="unauthorizedUrl" value="/unauthorized.jsp"/>
+
+        <!--配置哪些页面需要受保护，以及访问这些页面所需要的权限
+           anon 可以被匿名访问
+           authc 必须登陆后访问
+           logout登出
+         -->
+<!--        <property name="filterChainDefinitions">-->
+<!--            <value>-->
+<!--                /login.jsp = anon-->
+<!--                /shiro/login = anon-->
+<!--                /shiro/logout = logout-->
+<!--                /user.jsp = roles[user]-->
+<!--                /list.jsp = roles[admin]-->
+<!--                /** = authc-->
+<!--            </value>-->
+<!--        </property>-->
+<!--        <property name="filterChainDefinitionMap" ref="filterChainDefinitionMap"/>-->
+<!--        <property name="filterChainDefinitions">-->
+<!--            <value>-->
+<!--                /login.jsp = anon-->
+<!--                /shiro/login = anon-->
+<!--                /shiro/logout = logout-->
+
+<!--                /user.jsp = roles[user]-->
+<!--                /admin.jsp = roles[admin]-->
+
+<!--                # everything else requires authentication:-->
+<!--                /** = authc-->
+<!--            </value>-->
+<!--        </property>-->
+    </bean>
+
+    <bean id="filterChainDefinitionMap"
+          factory-bean="filterChainDefinitionMapBuilder" factory-method="buildFilterChainDefintionMap"/>
+    <!--通过配置bean的方法来增加相关的权限-->
+    <bean id="filterChainDefinitionMapBuilder"
+          class="com.kkcl.shiro.factory.FilterChainDefinitionMapBuilder"/>
+
+    <bean id="shiroService" class="com.kkcl.shiro.service.ShiroService"/>
+
+</beans>
